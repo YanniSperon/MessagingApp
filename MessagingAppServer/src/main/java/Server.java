@@ -69,6 +69,7 @@ public class Server {
     }
 
     private void executeLoginAttempt(UUID id, Packet p) {
+        System.out.println("Executing login attempt");
         serverLogCallback.accept("Received login request from " + getLogClientDescriptor(id));
         LoginAttempt request = (LoginAttempt) p.data;
         OperationResult replyPayload = new OperationResult();
@@ -79,6 +80,16 @@ public class Server {
             sendUpdatedUserList();
             sendUpdatedGroupList();
             serverLogCallback.accept(getLogClientDescriptor(id) + " login successful with username " + request.username);
+
+            Message joinMessage = new Message();
+            joinMessage.content = dataManager.users.get(id).username + " has joined the server";
+            joinMessage.sender = serverUser.uuid;
+            dataManager.getGroupChat(globalChat.uuid).messages.add(joinMessage);
+
+            UpdateGroupChat updateGlobalChatPayload = new UpdateGroupChat();
+            updateGlobalChatPayload.groupID = globalChat.uuid;
+            updateGlobalChatPayload.chat = dataManager.getGroupChat(globalChat.uuid);
+            updateGroupMembers(globalChat.uuid, new Packet(updateGlobalChatPayload));
         }
     }
 
@@ -126,7 +137,7 @@ public class Server {
             // If the user and group exist
             if (dataManager.isValidUser(id) && dataManager.isValidGroup(receiver)) {
                 // If the user is in the group
-                if (dataManager.groups.get(receiver).containsUser(id)) {
+                if (!dataManager.groups.get(receiver).isPrivate || dataManager.groups.get(receiver).containsUser(id)) {
                     // Add the message to the group chat
                     dataManager.getGroupChat(receiver).messages.add(request.message);
                     // Tell all other members of the group to update the chat
@@ -349,6 +360,7 @@ public class Server {
 
             try (ServerSocket mySocket = new ServerSocket(5555);) {
                 System.out.println("Server is waiting for a client!");
+                serverLogCallback.accept("server initialized");
 
                 while (true) {
                     UUID newUserUUID = null;
@@ -380,9 +392,13 @@ public class Server {
     public void updateGroupMembers(UUID g, Packet p) {
         if (dataManager.isValidGroup(g)) {
             Group group = dataManager.groups.get(g);
-            clients.get(group.creator).sendPacket(p);
-            for (UUID id : group.users) {
-                clients.get(id).sendPacket(p);
+            if (group.isPrivate) {
+                clients.get(group.creator).sendPacket(p);
+                for (UUID id : group.users) {
+                    clients.get(id).sendPacket(p);
+                }
+            } else {
+                updateClients(p);
             }
         }
     }
@@ -414,11 +430,25 @@ public class Server {
     }
 
     public void removeClient(UUID id) {
+        System.out.println("Executing disconnect");
+
         serverLogCallback.accept(getLogClientDescriptor(id) + " has disconnected from server");
+        if (dataManager.users.get(id).username != null) {
+            Message leaveMessage = new Message();
+            leaveMessage.content = dataManager.users.get(id).username + " has left the server";
+            leaveMessage.sender = serverUser.uuid;
+            dataManager.getGroupChat(globalChat.uuid).messages.add(leaveMessage);
+
+            UpdateGroupChat updateGlobalChatPayload = new UpdateGroupChat();
+            updateGlobalChatPayload.groupID = globalChat.uuid;
+            updateGlobalChatPayload.chat = dataManager.getGroupChat(globalChat.uuid);
+            updateGroupMembers(globalChat.uuid, new Packet(updateGlobalChatPayload));
+        }
+
         synchronized (dataManager) {
             dataManager.removeUser(id);
-            dataManager.leaveGroup(id, globalChat.uuid);
         }
+
         sendUpdatedUserList();
         sendUpdatedGroupList();
         synchronized (clients) {
@@ -466,9 +496,6 @@ public class Server {
                 } catch (Exception e) {
                     System.out.println("Streams not open");
                 }
-                synchronized (dataManager) {
-                    dataManager.addToGroup(this.uuid, globalChat.uuid);
-                }
 
                 Connected connectedPayload = new Connected();
                 connectedPayload.userID = this.uuid;
@@ -477,11 +504,6 @@ public class Server {
 
                 sendUpdatedUserList();
                 sendUpdatedGroupList();
-
-                UpdateGroupChat updateGlobalChatPayload = new UpdateGroupChat();
-                updateGlobalChatPayload.groupID = globalChat.uuid;
-                updateGlobalChatPayload.chat = dataManager.getGroupChat(globalChat.uuid);
-                sendPacket(new Packet(updateGlobalChatPayload));
 
                 while (true) {
                     try {

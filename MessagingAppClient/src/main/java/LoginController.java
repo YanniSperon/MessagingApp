@@ -41,11 +41,19 @@ public class LoginController implements CustomController, Initializable {
             case LOGIN_ERROR:
                 onInvalidLogin();
                 break;
-            case LOGIN_SUCCESS:
-            case REFRESH:
             default:
                 break;
         }
+    }
+
+    @Override
+    public void onResizeWidth(Number oldVal, Number newVal) {
+
+    }
+
+    @Override
+    public void onResizeHeight(Number oldVal, Number newVal) {
+
     }
 
     @Override

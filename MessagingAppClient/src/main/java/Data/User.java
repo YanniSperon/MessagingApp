@@ -17,18 +17,20 @@ public class User implements Serializable {
         return !blockedUsers.contains(otherUser.uuid);
     }
 
-    public void blockUser(UUID other)
-    {
+    public void blockUser(UUID other) {
         blockedUsers.add(other);
     }
 
-    public void unblockUser(UUID other)
-    {
+    public void unblockUser(UUID other) {
         blockedUsers.remove(other);
     }
 
     @Override
     public String toString() {
-        return "User(ID:" + uuid + ", Name:" + username + ")";
+        return "User(Name: \"" + username + "\", ID: \"" + uuid + "\")";
+    }
+
+    public String toDisplayString() {
+        return username;
     }
 }

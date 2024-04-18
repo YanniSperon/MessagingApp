@@ -1,10 +1,8 @@
-import Data.DirectMessage;
-import Data.Group;
-import Data.GroupMessage;
-import Data.User;
+import Data.*;
 import javafx.event.ActionEvent;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
@@ -19,11 +17,32 @@ import java.util.ResourceBundle;
 import java.util.UUID;
 
 public class HomeController implements CustomController, Initializable {
-    public VBox root;
     public TextField messageEntryField;
     public Button sendButton;
-    public ListView<String> listView;
+    public Label groupsLabel;
+    public Label chatNameIndicator;
+    public Button createGroupButton;
+    public ListView<String> contentView;
+    public ListView<String> userDisplay;
+    public ListView<String> groupDisplay;
 
+    public void groupDisplayClicked(MouseEvent mouseEvent) {
+        String selectedItem = groupDisplay.getSelectionModel().getSelectedItem();
+        System.out.println("List item " + selectedItem + " was clicked");
+        GUIClient.currentActiveChat = GUIClient.clientConnection.dataManager.getByGroupName(selectedItem);
+        updateUI(new GUICommand(GUICommand.Type.REFRESH));
+    }
+    public void userDisplayClicked(MouseEvent mouseEvent) {
+        String selectedItem = userDisplay.getSelectionModel().getSelectedItem();
+        System.out.println("List item " + selectedItem + " was clicked");
+        UUID selected = GUIClient.clientConnection.dataManager.getByUsername(selectedItem);
+        System.out.println("Client connection is " + GUIClient.clientConnection.uuid);
+        System.out.println("Selected is " + selected);
+        if (!selected.equals(GUIClient.clientConnection.uuid)) {
+            GUIClient.currentActiveChat = selected;
+        }
+        updateUI(new GUICommand(GUICommand.Type.REFRESH));
+    }
     public void onMessageEntryKeyPressed(KeyEvent keyEvent) {
         if (keyEvent.getCode().equals(KeyCode.ENTER)) {
             sendButtonPressed(new ActionEvent());
@@ -48,34 +67,48 @@ public class HomeController implements CustomController, Initializable {
         messageEntryField.clear();
     }
 
-    public void listItemClicked(MouseEvent mouseEvent) {
-        String selectedItem = listView.getSelectionModel().getSelectedItem();
-        System.out.printf("List item " + selectedItem + " was clicked");
+    public void createGroupButtonPressed(ActionEvent actionEvent) {
+        GUIClient.primaryStage.setScene(GUIClient.viewMap.get("createGroup").scene);
     }
 
     private void onLoginSuccess() {
+        GUIClient.clientConnection.lastOperation = Payload.Type.GROUP_CREATE;
         GUIClient.primaryStage.setScene(GUIClient.viewMap.get("home").scene);
         GUIClient.currentActiveChat = GUIClient.clientConnection.dataManager.getGlobalGroup();
     }
 
     private void refreshGUI() {
+        if (GUIClient.clientConnection.dataManager.isValidUser(GUIClient.currentActiveChat)) {
+            chatNameIndicator.setText("DM with \"" + GUIClient.clientConnection.dataManager.users.get(GUIClient.currentActiveChat).username + "\"");
+        } else if (GUIClient.currentActiveChat != null) {
+            chatNameIndicator.setText("Group \"" + GUIClient.clientConnection.dataManager.groups.get(GUIClient.currentActiveChat).name + "\"");
+        }
         String username = GUIClient.clientConnection.dataManager.users.get(GUIClient.clientConnection.uuid).username;
         if (username != null) {
             GUIClient.primaryStage.setTitle("Logged in as \"" + username + "\"");
         }
 
-        listView.getItems().clear();
-        listView.getItems().add("Groups:");
+        groupDisplay.getItems().clear();
         for (Map.Entry<UUID, Group> pair : GUIClient.clientConnection.dataManager.groups.entrySet()) {
-            listView.getItems().add(pair.getValue().toString());
+            groupDisplay.getItems().add(pair.getValue().toDisplayString());
         }
-        listView.getItems().add("Users:");
+
+        boolean didAddAny = false;
+        userDisplay.getItems().clear();
         for (Map.Entry<UUID, User> pair : GUIClient.clientConnection.dataManager.users.entrySet()) {
-            listView.getItems().add(pair.getValue().toString());
+            if ((!pair.getKey().equals(GUIClient.clientConnection.uuid)) && (pair.getValue().username != null) && (!pair.getValue().username.equals("Server"))) {
+                userDisplay.getItems().add(pair.getValue().toDisplayString());
+                didAddAny = true;
+            }
         }
+        if (!didAddAny) {
+            userDisplay.getItems().add("");
+        }
+
+
+        contentView.getItems().clear();
         int id = 1;
         HashMap<UUID, Integer> disconnectedUsers = new HashMap<UUID, Integer>();
-        listView.getItems().add("Messages:");
         if (GUIClient.clientConnection.dataManager.isValidGroup(GUIClient.currentActiveChat)) {
             for (Data.Message m : GUIClient.clientConnection.dataManager.getGroupChat(GUIClient.currentActiveChat).messages) {
                 String senderName = "Disconnected User(";
@@ -88,23 +121,36 @@ public class HomeController implements CustomController, Initializable {
                     disconnectedUsers.put(m.sender, id);
                     id++;
                 }
-                listView.getItems().add(senderName + ": " + m.content);
+                if (senderName.equals("Server")) {
+                    contentView.getItems().add(m.content);
+                } else {
+                    contentView.getItems().add(senderName + ": " + m.content);
+                }
             }
         }
         else if (GUIClient.clientConnection.dataManager.isValidUser(GUIClient.currentActiveChat)) {
-            for (Data.Message m : GUIClient.clientConnection.dataManager.getDM(GUIClient.clientConnection.uuid, GUIClient.currentActiveChat).messages) {
-                String senderName = "Disconnected User(";
-                if (GUIClient.clientConnection.dataManager.isValidUser(m.sender)) {
-                    senderName = GUIClient.clientConnection.dataManager.users.get(m.sender).username;
-                } else if (disconnectedUsers.containsKey(m.sender)){
-                    senderName += disconnectedUsers.get(m.sender) + ")";
-                } else {
-                    senderName += id + ")";
-                    disconnectedUsers.put(m.sender, id);
-                    id++;
+            if (GUIClient.clientConnection.dataManager.getDM(GUIClient.clientConnection.uuid, GUIClient.currentActiveChat) != null) {
+                for (Data.Message m : GUIClient.clientConnection.dataManager.getDM(GUIClient.clientConnection.uuid, GUIClient.currentActiveChat).messages) {
+                    String senderName = "Disconnected User(";
+                    if (GUIClient.clientConnection.dataManager.isValidUser(m.sender)) {
+                        senderName = GUIClient.clientConnection.dataManager.users.get(m.sender).username;
+                    } else if (disconnectedUsers.containsKey(m.sender)) {
+                        senderName += disconnectedUsers.get(m.sender) + ")";
+                    } else {
+                        senderName += id + ")";
+                        disconnectedUsers.put(m.sender, id);
+                        id++;
+                    }
+                    if (senderName.equals("Server")) {
+                        contentView.getItems().add(m.content);
+                    } else {
+                        contentView.getItems().add(senderName + ": " + m.content);
+                    }
                 }
-                listView.getItems().add(senderName + ": " + m.content);
             }
+        }
+        else {
+            contentView.getItems().add("");
         }
     }
 
@@ -115,12 +161,22 @@ public class HomeController implements CustomController, Initializable {
                 onLoginSuccess();
                 break;
             case REFRESH:
+            case GROUP_CREATE_SUCCESS:
                 refreshGUI();
                 break;
-            case LOGIN_ERROR:
             default:
                 break;
         }
+    }
+
+    @Override
+    public void onResizeWidth(Number oldVal, Number newVal) {
+
+    }
+
+    @Override
+    public void onResizeHeight(Number oldVal, Number newVal) {
+
     }
 
     @Override

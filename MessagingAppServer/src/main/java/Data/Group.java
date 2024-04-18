@@ -71,6 +71,10 @@ public class Group implements Serializable {
 
     @Override
     public String toString() {
-        return "Group(ID:" + uuid + ", Name:" + name + ")";
+        return "Group(Name: \"" + name + "\", ID: \"" + uuid + "\")";
+    }
+
+    public String toDisplayString() {
+        return name;
     }
 }

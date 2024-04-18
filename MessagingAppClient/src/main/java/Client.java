@@ -48,15 +48,24 @@ public class Client extends Thread {
             if (lastOperation == Payload.Type.LOGIN_ATTEMPT) {
                 UIUpdateCallback.accept(new GUICommand(GUICommand.Type.LOGIN_SUCCESS));
             }
+            else if (lastOperation == Payload.Type.GROUP_CREATE) {
+                UIUpdateCallback.accept(new GUICommand(GUICommand.Type.GROUP_CREATE_SUCCESS));
+            }
         } else {
             if (lastOperation == Payload.Type.LOGIN_ATTEMPT) {
                 UIUpdateCallback.accept(new GUICommand(GUICommand.Type.LOGIN_ERROR));
+            }
+            else if (lastOperation == Payload.Type.GROUP_CREATE) {
+                UIUpdateCallback.accept(new GUICommand(GUICommand.Type.GROUP_CREATE_ERROR));
             }
         }
     }
 
     private void executeUpdateGroupChat(UUID id, Packet p) {
         UpdateGroupChat d = (UpdateGroupChat) p.data;
+        for (Data.Message m : d.chat.messages) {
+            System.out.println(m.content);
+        }
         dataManager.setGroupChat(d.groupID, d.chat);
         UIUpdateCallback.accept(new GUICommand(GUICommand.Type.REFRESH));
     }

@@ -27,6 +27,10 @@ public class User implements Serializable {
 
     @Override
     public String toString() {
-        return "User(ID:" + uuid + ", Name:" + username + ")";
+        return "User(Name: \"" + username + "\", ID: \"" + uuid + "\")";
+    }
+
+    public String toDisplayString() {
+        return username;
     }
 }

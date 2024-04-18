@@ -6,25 +6,45 @@
 .basicFont{
 	-fx-font-family: 'serif';
     -fx-font-size: 20px;
+    -fx-text-fill: white;
+}
+
+.basicSmallFont{
+	-fx-font-family: 'serif';
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
 }
 
 .errorMessage{
-    .basicFont;
+	-fx-font-family: 'serif';
+    -fx-font-size: 20px;
+    -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-text-fill: red;
 }
 
 .indicatorMessage{
-    .basicFont;
+	-fx-font-family: 'serif';
+    -fx-font-size: 20px;
     -fx-text-fill: white;
 }
 
 .textEntryBox{
-    .basicFont;
+	-fx-font-family: 'serif';
+    -fx-font-size: 20px;
+    -fx-text-fill: black;
+}
+
+.smallTextEntryBox{
+	-fx-font-family: 'serif';
+    -fx-font-size: 12px;
+    -fx-text-fill: black;
 }
 
 .button{
-    .basicFont;
+	-fx-font-family: 'serif';
+    -fx-font-size: 20px;
+    -fx-text-fill: black;
 }
 
 /*.button{

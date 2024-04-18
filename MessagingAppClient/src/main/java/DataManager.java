@@ -104,4 +104,22 @@ public class DataManager {
         }
         return null;
     }
+
+    public UUID getByUsername(String username) {
+        for (Map.Entry<UUID, User> pair : users.entrySet()) {
+            if (pair.getValue().username != null && pair.getValue().username.equals(username)) {
+                return pair.getKey();
+            }
+        }
+        return null;
+    }
+
+    public UUID getByGroupName(String groupName) {
+        for (Map.Entry<UUID, Group> pair : groups.entrySet()) {
+            if (pair.getValue().name != null && pair.getValue().name.equals(groupName)) {
+                return pair.getKey();
+            }
+        }
+        return null;
+    }
 }

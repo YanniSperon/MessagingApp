@@ -1,0 +1,34 @@
+.background{
+	-fx-background-color: blue;
+	-fx-font-family: 'serif';
+}
+
+.basicFont{
+	-fx-font-family: 'serif';
+    -fx-font-size: 20px;
+}
+
+.errorMessage{
+    .basicFont;
+    -fx-font-weight: bold;
+    -fx-text-fill: red;
+}
+
+.indicatorMessage{
+    .basicFont;
+    -fx-text-fill: white;
+}
+
+.textEntryBox{
+    .basicFont;
+}
+
+.button{
+    .basicFont;
+}
+
+/*.button{
+	-fx-font-size: 20px;
+	-fx-font-weight: bold;
+	-fx-background-color: pink;
+}*/

@@ -396,7 +396,6 @@ public class Server {
     }
 
     public void sendUpdatedUserList() {
-        System.out.println("Updating users server");
         UpdateUsers d = new UpdateUsers();
         synchronized (dataManager) {
             d.users = dataManager.users;
@@ -478,6 +477,11 @@ public class Server {
 
                 sendUpdatedUserList();
                 sendUpdatedGroupList();
+
+                UpdateGroupChat updateGlobalChatPayload = new UpdateGroupChat();
+                updateGlobalChatPayload.groupID = globalChat.uuid;
+                updateGlobalChatPayload.chat = dataManager.getGroupChat(globalChat.uuid);
+                sendPacket(new Packet(updateGlobalChatPayload));
 
                 while (true) {
                     try {

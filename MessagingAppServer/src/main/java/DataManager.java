@@ -100,27 +100,29 @@ public class DataManager {
     }
 
     public Chat getDM(UUID u1, UUID u2) {
+        if (u1 == null || u2 == null) {
+            return null;
+        }
         if (u1.compareTo(u2) < 0) {
             UUID temp = u1;
             u1 = u2;
             u2 = temp;
         }
         Pair<UUID, UUID> p = new Pair<UUID, UUID>(u1, u2);
-        if (directMessages.containsKey(p)) {
-            return directMessages.get(p);
-        } else {
+        if (!directMessages.containsKey(p)) {
             directMessages.put(p, new Chat());
-            return directMessages.get(p);
         }
+        return directMessages.get(p);
     }
 
     public Chat getGroupChat(UUID group) {
-        if (groupChats.containsKey(group)) {
-            return groupChats.get(group);
-        } else {
-            groupChats.put(group, new Chat());
-            return groupChats.get(group);
+        if (group == null) {
+            return null;
         }
+        if (!groupChats.containsKey(group)) {
+            groupChats.put(group, new Chat());
+        }
+        return groupChats.get(group);
     }
 
     public boolean isValidUser(UUID user) {

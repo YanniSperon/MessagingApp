@@ -42,25 +42,49 @@ public class DataManager {
     }
 
     public Chat getDM(UUID u1, UUID u2) {
+        if (u1 == null || u2 == null) {
+            return null;
+        }
         if (u1.compareTo(u2) < 0) {
             UUID temp = u1;
             u1 = u2;
             u2 = temp;
         }
         Pair<UUID, UUID> p = new Pair<UUID, UUID>(u1, u2);
-        if (directMessages.containsKey(p)) {
-            return directMessages.get(p);
-        } else {
+        if (!directMessages.containsKey(p)) {
             return directMessages.put(p, new Chat());
         }
+        return directMessages.get(p);
+    }
+
+    public void setDirectMessage(UUID u1, UUID u2, Chat chat) {
+        if (u1 == null || u2 == null || chat == null) {
+            return;
+        }
+        if (u1.compareTo(u2) < 0) {
+            UUID temp = u1;
+            u1 = u2;
+            u2 = temp;
+        }
+        Pair<UUID, UUID> p = new Pair<UUID, UUID>(u1, u2);
+        directMessages.put(p, chat);
     }
 
     public Chat getGroupChat(UUID group) {
-        if (groupChats.containsKey(group)) {
-            return groupChats.get(group);
-        } else {
-            return groupChats.put(group, new Chat());
+        if (group == null) {
+            return null;
         }
+        if (!groupChats.containsKey(group)) {
+            groupChats.put(group, new Chat());
+        }
+        return groupChats.get(group);
+    }
+
+    public void setGroupChat(UUID group, Chat chat) {
+        if (group == null || chat == null) {
+            return;
+        }
+        groupChats.put(group, chat);
     }
 
     public boolean isValidUser(UUID user) {
@@ -71,8 +95,7 @@ public class DataManager {
         return groups.containsKey(group);
     }
 
-    public UUID getGlobalGroup()
-    {
+    public UUID getGlobalGroup() {
         for (Map.Entry<UUID, Group> pair : groups.entrySet()) {
             Group g = pair.getValue();
             if (g.name.equals("Global")) {

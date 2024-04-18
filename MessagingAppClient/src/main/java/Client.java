@@ -29,7 +29,6 @@ public class Client extends Thread {
     }
 
     private void executeUpdateUsers(UUID id, Packet p) {
-        System.out.println("Updating users client");
         UpdateUsers d = (UpdateUsers) p.data;
         dataManager.users.clear();
         dataManager.users.putAll(d.users);
@@ -54,6 +53,18 @@ public class Client extends Thread {
                 UIUpdateCallback.accept(new GUICommand(GUICommand.Type.LOGIN_ERROR));
             }
         }
+    }
+
+    private void executeUpdateGroupChat(UUID id, Packet p) {
+        UpdateGroupChat d = (UpdateGroupChat) p.data;
+        dataManager.setGroupChat(d.groupID, d.chat);
+        UIUpdateCallback.accept(new GUICommand(GUICommand.Type.REFRESH));
+    }
+
+    private void executeUpdateDirectMessage(UUID id, Packet p) {
+        UpdateDirectMessage d = (UpdateDirectMessage) p.data;
+        dataManager.setDirectMessage(d.user1ID, d.user2ID, d.chat);
+        UIUpdateCallback.accept(new GUICommand(GUICommand.Type.REFRESH));
     }
 
     public void executeCommand(UUID id, Packet p) {
@@ -81,6 +92,15 @@ public class Client extends Thread {
                     executeOperationResult(id, p);
                     break;
                 }
+                case UPDATE_GROUP_CHAT: {
+                    executeUpdateGroupChat(id, p);
+                    break;
+                }
+                case UPDATE_DIRECT_MESSAGE: {
+                    executeUpdateDirectMessage(id, p);
+                }
+                default:
+                    break;
             }
         }
     }

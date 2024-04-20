@@ -50,6 +50,9 @@ public class Group implements Serializable {
 
     // Returns true if the user was in the group, false otherwise
     public boolean removeUserIfNecessary(UUID id) {
+        if (creator == null) {
+            return true;
+        }
         if (creator.equals(id)) {
             if (!users.isEmpty()) {
                 creator = users.get(0);

@@ -45,8 +45,11 @@ public class DataManager {
         if (isValidGroup(group)) {
             Group g = groups.get(group);
             res = g.removeUserIfNecessary(user);
-            if (g.isGroupEmpty()) {
-                removeGroup(group);
+            if (g.isPrivate) {
+                if (g.isGroupEmpty()) {
+                    System.out.println("Should remove group " + g.name);
+                    removeGroup(group);
+                }
             }
         }
         return res;
@@ -56,8 +59,10 @@ public class DataManager {
         ArrayList<UUID> groupsToDelete = new ArrayList<UUID>();
         for (Map.Entry<UUID, Group> pair : groups.entrySet()) {
             Group g = pair.getValue();
-            if (g.removeUserIfNecessary(uuid)) {
+            if (g.isPrivate) {
+                g.removeUserIfNecessary(uuid);
                 if (g.isGroupEmpty()) {
+                    System.out.println("Should remove group " + g.name);
                     groupsToDelete.add(pair.getKey());
                 }
             }
@@ -77,6 +82,7 @@ public class DataManager {
 
     public void removeGroup(UUID uuid) {
         groups.remove(uuid);
+        groupChats.remove(uuid);
     }
 
     public boolean containsUsername(String username) {

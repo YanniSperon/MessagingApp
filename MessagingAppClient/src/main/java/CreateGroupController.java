@@ -1,4 +1,6 @@
 import Data.GroupCreate;
+import Data.Payload;
+import com.sun.org.apache.bcel.internal.generic.Select;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
@@ -15,16 +17,38 @@ import javafx.util.Callback;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.ResourceBundle;
 import java.util.UUID;
 
 public class CreateGroupController implements CustomController, Initializable {
     public Label errorIndicator;
-    public TextField usernameEntryField;
+    public TextField groupNameEntryField;
     public CheckBox privateCheckbox;
     public CheckBox allowInvitesCheckbox;
     public ListView<String> userSelector;
-    private final ArrayList<UUID> selectedUsers = new ArrayList<>();
+    private final HashMap<UUID, SelectedUserCell> selectedUsers = new HashMap<UUID, SelectedUserCell>();
+
+    public void cancelButtonPressed(ActionEvent actionEvent) {
+        GUIClient.primaryStage.setScene(GUIClient.viewMap.get("home").scene);
+    }
+
+    public class SelectedUserCell {
+        public final BooleanProperty observable;
+        private final UUID id;
+
+        public SelectedUserCell(String item, UUID id) {
+            this.observable = new SimpleBooleanProperty();
+            this.id = id;
+            this.observable.addListener((obs, wasSelected, isNowSelected) -> {
+                if (isNowSelected) {
+                    selectedUsers.put(this.id, this);
+                } else if (wasSelected) {
+                    selectedUsers.remove(this.id);
+                }
+            });
+        }
+    }
 
     public void onNameEntryKeyPressed(KeyEvent keyEvent) {
         if (keyEvent.getCode().equals(KeyCode.ENTER)) {
@@ -36,10 +60,10 @@ public class CreateGroupController implements CustomController, Initializable {
         boolean isPrivate = privateCheckbox.isSelected();
         if (isPrivate) {
             userSelector.setDisable(false);
-            allowInvitesCheckbox.setDisable(false);
+            //allowInvitesCheckbox.setDisable(false);
         } else {
             userSelector.setDisable(true);
-            allowInvitesCheckbox.setDisable(true);
+            //allowInvitesCheckbox.setDisable(true);
         }
     }
 
@@ -47,45 +71,75 @@ public class CreateGroupController implements CustomController, Initializable {
     }
 
     public void createButtonPressed(ActionEvent actionEvent) {
-        String groupName = usernameEntryField.getText();
+        String groupName = groupNameEntryField.getText();
         if (!groupName.isEmpty()) {
-            GroupCreate d = new GroupCreate();
-            d.creatorID = GUIClient.clientConnection.uuid;
-            d.groupName = usernameEntryField.getText();
-            boolean isPrivate = privateCheckbox.isSelected();
-            if (isPrivate) {
-                d.isPrivate = isPrivate;
-                d.allowInvites = privateCheckbox.isSelected();
+            String cleanedGroupName = groupName.trim();
+            if (groupName.equals(cleanedGroupName)) {
+                GUIClient.clientConnection.lastOperation = Payload.Type.GROUP_CREATE;
+                GroupCreate d = new GroupCreate();
+                d.creatorID = GUIClient.clientConnection.uuid;
+                d.groupName = cleanedGroupName;
+                d.members = new ArrayList<UUID>();
+                selectedUsers.forEach((k, v) -> {
+                    d.members.add(k);
+                });
+                boolean isPrivate = privateCheckbox.isSelected();
+                if (isPrivate) {
+                    d.isPrivate = true;
+                    d.allowInvites = false;
+                    //d.allowInvites = allowInvitesCheckbox.isSelected();
+                } else {
+                    d.isPrivate = false;
+                    d.allowInvites = false;
+                }
+                GUIClient.clientConnection.send(new Packet(d));
             } else {
-                d.isPrivate = false;
-                d.allowInvites = true;
+                errorIndicator.setText("Group name cannot have leading or trailing whitespace");
+                errorIndicator.setVisible(true);
             }
+        } else {
+            errorIndicator.setText("Please enter a group name");
+            errorIndicator.setVisible(true);
         }
     }
 
     public void onGroupCreateError() {
+        System.out.println("Group create failed");
+        errorIndicator.setText("Group name already taken");
         errorIndicator.setVisible(true);
     }
 
     public void onGroupCreateSuccess() {
+        System.out.println("Group create success");
         errorIndicator.setVisible(false);
+        groupNameEntryField.setText("");
+        cancelButtonPressed(new ActionEvent());
     }
 
     public void onRefresh() {
-        userSelector.getItems().clear();
-        GUIClient.clientConnection.dataManager.users.forEach((k, v) -> {
-            if (v.username != null && !v.uuid.equals(GUIClient.clientConnection.uuid)) {
-                userSelector.getItems().add(v.username);
+        synchronized (GUIClient.clientConnection.dataManager) {
+            userSelector.getItems().clear();
+            GUIClient.clientConnection.dataManager.users.forEach((k, v) -> {
+                if (v.username != null && !v.uuid.equals(GUIClient.clientConnection.uuid) && !v.username.equals("Server")) {
+                    userSelector.getItems().add(v.username);
+                }
+            });
+            ArrayList<UUID> idsToKeep = new ArrayList<UUID>();
+            ArrayList<UUID> idsToRemove = new ArrayList<UUID>();
+            selectedUsers.forEach((k, v) -> {
+                if (GUIClient.clientConnection.dataManager.isValidUser(k)) {
+                    idsToKeep.add(k);
+                } else {
+                    idsToRemove.add(k);
+                }
+            });
+
+            for (UUID id : idsToRemove) {
+                selectedUsers.remove(id);
             }
-        });
-        ArrayList<UUID> idsToRemove = new ArrayList<UUID>();
-        for (UUID id : selectedUsers) {
-            if (!GUIClient.clientConnection.dataManager.isValidUser(id)) {
-                idsToRemove.add(id);
+            for (UUID id : idsToKeep) {
+                selectedUsers.get(id).observable.set(true);
             }
-        }
-        for (UUID id : idsToRemove) {
-            selectedUsers.remove(id);
         }
     }
 
@@ -94,10 +148,13 @@ public class CreateGroupController implements CustomController, Initializable {
         switch (command.type) {
             case GROUP_CREATE_ERROR:
                 onGroupCreateError();
+                break;
             case GROUP_CREATE_SUCCESS:
                 onGroupCreateSuccess();
+                break;
             case REFRESH:
                 onRefresh();
+                break;
             default:
                 break;
         }
@@ -119,15 +176,8 @@ public class CreateGroupController implements CustomController, Initializable {
         userSelector.setCellFactory(CheckBoxListCell.forListView(new Callback<String, ObservableValue<Boolean>>() {
             @Override
             public ObservableValue<Boolean> call(String item) {
-                BooleanProperty observable = new SimpleBooleanProperty();
-                observable.addListener((obs, wasSelected, isNowSelected) -> {
-                    if (isNowSelected) {
-                        selectedUsers.add(GUIClient.clientConnection.dataManager.getByUsername(item));
-                    } else if (wasSelected) {
-                        selectedUsers.remove(GUIClient.clientConnection.dataManager.getByUsername(item));
-                    }
-                });
-                return observable;
+                SelectedUserCell cell = new SelectedUserCell(item, GUIClient.clientConnection.dataManager.getByUsername(item));
+                return cell.observable;
             }
         }));
     }

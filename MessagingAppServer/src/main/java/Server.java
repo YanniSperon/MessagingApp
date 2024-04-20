@@ -429,8 +429,28 @@ public class Server {
         updateClients(p);
     }
 
+    public void sendUpdatedGroupChats(UUID id) {
+        synchronized (dataManager) {
+            dataManager.groupChats.forEach((k, v) -> {
+                Group g = dataManager.groups.get(k);
+                if (g != null) {
+                    if (!g.isPrivate || g.users.contains(id)) {
+                        UpdateGroupChat ugc = new UpdateGroupChat();
+                        ugc.groupID = k;
+                        ugc.chat = v;
+                        updateUser(id, new Packet(ugc));
+                    }
+                }
+            });
+        }
+    }
+
     public void removeClient(UUID id) {
         System.out.println("Executing disconnect");
+
+        synchronized (clients) {
+            clients.remove(id);
+        }
 
         serverLogCallback.accept(getLogClientDescriptor(id) + " has disconnected from server");
         if (dataManager.users.get(id).username != null) {
@@ -439,21 +459,27 @@ public class Server {
             leaveMessage.sender = serverUser.uuid;
             dataManager.getGroupChat(globalChat.uuid).messages.add(leaveMessage);
 
+            dataManager.groupChats.forEach((k, v) -> {
+                for (Message m : v.messages) {
+                    if (m.sender != null && m.sender.equals(id)) {
+                        m.content = dataManager.users.get(id).username + "(disconnected): " + m.content;
+                        m.sender = serverUser.uuid;
+                    }
+                }
+            });
+
+            synchronized (dataManager) {
+                dataManager.removeUser(id);
+            }
+
             UpdateGroupChat updateGlobalChatPayload = new UpdateGroupChat();
             updateGlobalChatPayload.groupID = globalChat.uuid;
             updateGlobalChatPayload.chat = dataManager.getGroupChat(globalChat.uuid);
             updateGroupMembers(globalChat.uuid, new Packet(updateGlobalChatPayload));
         }
 
-        synchronized (dataManager) {
-            dataManager.removeUser(id);
-        }
-
         sendUpdatedUserList();
         sendUpdatedGroupList();
-        synchronized (clients) {
-            clients.remove(id);
-        }
     }
 
 
@@ -476,7 +502,7 @@ public class Server {
 
         public void sendPacket(Packet p) {
             if (isValid) {
-                synchronized (this) {
+                synchronized (this.out) {
                     try {
                         this.out.reset();
                         this.out.writeObject(p);
@@ -504,6 +530,7 @@ public class Server {
 
                 sendUpdatedUserList();
                 sendUpdatedGroupList();
+                sendUpdatedGroupChats(this.uuid);
 
                 while (true) {
                     try {

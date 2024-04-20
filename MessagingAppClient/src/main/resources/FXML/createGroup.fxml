@@ -9,21 +9,30 @@
 <?import javafx.scene.control.CheckBox?>
 
 <?import javafx.scene.control.Tooltip?>
-<VBox xmlns:fx="http://javafx.com/fxml/1" styleClass="background" fx:controller="CreateGroupController" fx:id="root" spacing="10">
+<VBox xmlns:fx="http://javafx.com/fxml/1" styleClass="background" fx:controller="CreateGroupController" fx:id="root"
+      spacing="10">
     <Label styleClass="errorMessage" fx:id="errorIndicator" text="Group name taken" visible="false"/>
-    <HBox spacing="10">
+    <HBox spacing="10" alignment="CENTER_LEFT">
         <Label styleClass="basicFont" text="Name:"/>
-        <TextField styleClass="textEntryBox" fx:id="usernameEntryField" onKeyPressed="#onNameEntryKeyPressed"/>
+        <TextField styleClass="textEntryBox" fx:id="groupNameEntryField" onKeyPressed="#onNameEntryKeyPressed"/>
     </HBox>
 
     <CheckBox styleClass="basicFont" fx:id="privateCheckbox" text="Private" onAction="#privateCheckboxToggled">
-        <tooltip><Tooltip styleClass="basicFont" text="Private groups are invite-only"/></tooltip>
+        <tooltip>
+            <Tooltip styleClass="basicFont" text="Private groups are invite-only"/>
+        </tooltip>
     </CheckBox>
-    <CheckBox styleClass="basicFont" fx:id="allowInvitesCheckbox" text="Allow Invites" onAction="#allowInvitesCheckboxToggled">
-        <tooltip><Tooltip styleClass="basicFont" text="Should private groups allow anyone to invite or just the creator"/></tooltip>
-    </CheckBox>
+    <!--<CheckBox styleClass="basicFont" fx:id="allowInvitesCheckbox" text="Allow Invites"
+              onAction="#allowInvitesCheckboxToggled">
+        <tooltip>
+            <Tooltip styleClass="basicFont" text="Should private groups allow anyone to invite or just the creator"/>
+        </tooltip>
+    </CheckBox>-->
 
-    <ListView styleClass="basicFont" fx:id="userSelector"/>
+    <ListView styleClass="basicFont" fx:id="userSelector" disable="true"/>
 
-    <Button styleClass="button" text="Create" onAction="#createButtonPressed"/>
+    <HBox prefWidth="Infinity">
+        <Button styleClass="button" maxWidth="Infinity" HBox.hgrow="ALWAYS" text="Cancel" onAction="#cancelButtonPressed"/>
+        <Button styleClass="button" maxWidth="Infinity" HBox.hgrow="ALWAYS" text="Create" onAction="#createButtonPressed"/>
+    </HBox>
 </VBox>

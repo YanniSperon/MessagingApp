@@ -18,7 +18,7 @@
             <ListView styleClass="basicSmallFont" fx:id="groupDisplay" onMouseClicked="#groupDisplayClicked">
                 <tooltip><Tooltip styleClass="basicFont" text="Click a group to chat in it"/></tooltip>
             </ListView>
-            <!--<Button maxWidth="Infinity" styleClass="button" alignment="CENTER" fx:id="createGroupButton" text="Create" onAction="#createGroupButtonPressed"/>-->
+            <Button maxWidth="Infinity" styleClass="button" alignment="CENTER" fx:id="createGroupButton" text="Create" onAction="#createGroupButtonPressed"/>
         </VBox>
     </left>
     <center>

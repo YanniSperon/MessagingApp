@@ -138,8 +138,10 @@ public class Client extends Thread {
 
     public void send(Packet data) {
         try {
-            this.out.reset();
-            this.out.writeObject(data);
+            synchronized (this.out) {
+                this.out.reset();
+                this.out.writeObject(data);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

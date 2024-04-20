@@ -17,6 +17,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -25,7 +27,7 @@ public class GUIServer extends Application {
     HashMap<String, Scene> sceneMap;
     public static Server serverConnection;
 
-    ListView<String> listItems, listItems2, listItems3, listItems4;
+    ListView<String> logListView, usersListView, groupsListView, chatListView;
 
     Label activeChatLabel;
     UUID activeChat;
@@ -36,62 +38,45 @@ public class GUIServer extends Application {
     }
 
     private void updateChat() {
-        listItems4.getItems().clear();
-        int id = 1;
-        HashMap<UUID, Integer> disconnectedUsers = new HashMap<UUID, Integer>();
-        if (serverConnection.dataManager.isValidGroup(activeChat)) {
-            activeChatLabel.setText("Group \"" + serverConnection.dataManager.groups.get(activeChat).name + "\"");
-            for (Data.Message m : serverConnection.dataManager.getGroupChat(activeChat).messages) {
-                String senderName = "Disconnected User(";
-                if (serverConnection.dataManager.isValidUser(m.sender)) {
-                    senderName = serverConnection.dataManager.users.get(m.sender).username;
-                } else if (disconnectedUsers.containsKey(m.sender)) {
-                    senderName += disconnectedUsers.get(m.sender) + ")";
-                } else {
-                    senderName += id + ")";
-                    disconnectedUsers.put(m.sender, id);
-                    id++;
-                }
-                if (senderName.equals("Server")) {
-                    listItems4.getItems().add(m.content);
-                } else {
-                    listItems4.getItems().add(senderName + ": " + m.content);
-                }
-            }
-        } else if (serverConnection.dataManager.isValidUser(activeChat)) {
-            if (serverConnection.dataManager.isValidUser(activeChat2)) {
-                activeChatLabel.setText("DM between \"" + serverConnection.dataManager.users.get(activeChat).username + "\" and \"" + serverConnection.dataManager.users.get(activeChat2).username + "\"");
-                for (Data.Message m : serverConnection.dataManager.getDM(activeChat, activeChat2).messages) {
-                    String senderName = "Disconnected User(";
-                    if (serverConnection.dataManager.isValidUser(m.sender)) {
-                        senderName = serverConnection.dataManager.users.get(m.sender).username;
-                    } else if (disconnectedUsers.containsKey(m.sender)) {
-                        senderName += disconnectedUsers.get(m.sender) + ")";
+        synchronized (serverConnection.dataManager) {
+            chatListView.getItems().clear();
+            if (serverConnection.dataManager.isValidGroup(activeChat)) {
+                activeChatLabel.setText("Group \"" + serverConnection.dataManager.groups.get(activeChat).name + "\" chat");
+                for (Data.Message m : serverConnection.dataManager.getGroupChat(activeChat).messages) {
+                    String senderName = serverConnection.dataManager.users.get(m.sender).username;
+                    if (senderName == null || senderName.equals("Server")) {
+                        chatListView.getItems().add(m.content);
                     } else {
-                        senderName += id + ")";
-                        disconnectedUsers.put(m.sender, id);
-                        id++;
-                    }
-                    if (senderName.equals("Server")) {
-                        listItems4.getItems().add(m.content);
-                    } else {
-                        listItems4.getItems().add(senderName + ": " + m.content);
+                        chatListView.getItems().add(senderName + ": " + m.content);
                     }
                 }
-            } else {
-                activeChatLabel.setText("Choose another user to view DM");
+            } else if (serverConnection.dataManager.isValidUser(activeChat)) {
+                if (serverConnection.dataManager.isValidUser(activeChat2)) {
+                    activeChatLabel.setText("DM between \"" + serverConnection.dataManager.users.get(activeChat).username + "\" and \"" + serverConnection.dataManager.users.get(activeChat2).username + "\"");
+                    for (Data.Message m : serverConnection.dataManager.getDM(activeChat, activeChat2).messages) {
+                        String senderName = serverConnection.dataManager.users.get(m.sender).username;
+                        if (senderName == null || senderName.equals("Server")) {
+                            chatListView.getItems().add(m.content);
+                        } else {
+                            chatListView.getItems().add(senderName + ": " + m.content);
+                        }
+                    }
+                } else {
+                    activeChatLabel.setText("DM between \"" + serverConnection.dataManager.users.get(activeChat).username + "\" and (select another user)");
+                }
             }
-        } else {
-            listItems4.getItems().add("");
+            if (chatListView.getItems().isEmpty()) {
+                chatListView.getItems().add("");
+            }
         }
     }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        listItems = new ListView<String>();
-        listItems2 = new ListView<String>();
-        listItems3 = new ListView<String>();
-        listItems4 = new ListView<String>();
+        logListView = new ListView<String>();
+        usersListView = new ListView<String>();
+        groupsListView = new ListView<String>();
+        chatListView = new ListView<String>();
 
         sceneMap = new HashMap<String, Scene>();
 
@@ -112,25 +97,29 @@ public class GUIServer extends Application {
 
         serverConnection = new Server(data -> {
             Platform.runLater(() -> {
-                listItems.getItems().add(data.toString());
-                listItems2.getItems().clear();
+                logListView.getItems().add(data.toString());
+                usersListView.getItems().clear();
                 boolean anyAdded = false;
-                for (Map.Entry<UUID, User> pair : serverConnection.dataManager.users.entrySet()) {
-                    if (pair.getValue().username != null && !pair.getValue().username.equals("Server")) {
-                        listItems2.getItems().add(pair.getValue().toDisplayString());
-                        anyAdded = true;
+                synchronized (serverConnection.dataManager) {
+                    for (Map.Entry<UUID, User> pair : serverConnection.dataManager.users.entrySet()) {
+                        if (pair.getValue().username != null && !pair.getValue().username.equals("Server")) {
+                            usersListView.getItems().add(pair.getValue().toDisplayString());
+                            anyAdded = true;
+                        }
                     }
-                }
-                if (!anyAdded) {
-                    listItems2.getItems().add("");
-                }
-                listItems3.getItems().clear();
-                for (Map.Entry<UUID, Group> pair : serverConnection.dataManager.groups.entrySet()) {
-                    listItems3.getItems().add(pair.getValue().toDisplayString());
+                    if (!anyAdded) {
+                        usersListView.getItems().add("");
+                    }
+                    groupsListView.getItems().clear();
+                    for (Map.Entry<UUID, Group> pair : serverConnection.dataManager.groups.entrySet()) {
+                        groupsListView.getItems().add(pair.getValue().toDisplayString());
+                    }
                 }
                 updateChat();
             });
         });
+
+        activeChat = serverConnection.globalChat.uuid;
     }
 
     public Scene createServerGUI() {
@@ -140,13 +129,15 @@ public class GUIServer extends Application {
         pane.setStyle("-fx-background-color: coral");
 
         Label centerLLabel = new Label("Log");
+        centerLLabel.setFont(Font.font("serif", FontWeight.BOLD, 16));
         centerLLabel.setAlignment(Pos.CENTER);
-        VBox centerLVbox = new VBox(10, centerLLabel, listItems);
+        VBox centerLVbox = new VBox(10, centerLLabel, logListView);
         centerLVbox.setAlignment(Pos.CENTER);
 
-        activeChatLabel = new Label("No active chat");
+        activeChatLabel = new Label("Group \"Global\" chat");
         activeChatLabel.setAlignment(Pos.CENTER);
-        VBox centerRVbox = new VBox(10, activeChatLabel, listItems4);
+        activeChatLabel.setFont(Font.font("serif", FontWeight.BOLD, 16));
+        VBox centerRVbox = new VBox(10, activeChatLabel, chatListView);
         centerRVbox.setAlignment(Pos.CENTER);
 
         HBox centerHbox = new HBox(0, centerLVbox, centerRVbox);
@@ -157,25 +148,32 @@ public class GUIServer extends Application {
         pane.setCenter(centerHbox);
 
         Label rightLabel = new Label("Users (Select two to view DM)");
+        rightLabel.setFont(Font.font("serif", FontWeight.BOLD, 16));
         rightLabel.setAlignment(Pos.CENTER);
-        VBox rightVbox = new VBox(10, rightLabel, listItems2);
-        listItems2.setOnMouseClicked((e) -> {
-            String selectedItem = listItems2.getSelectionModel().getSelectedItem();
-            if (!selectedItem.isEmpty()) {
+        VBox rightVbox = new VBox(10, rightLabel, usersListView);
+        usersListView.setOnMouseClicked((e) -> {
+            String selectedItem = usersListView.getSelectionModel().getSelectedItem();
+            if (selectedItem != null && !selectedItem.isEmpty()) {
                 if (activeChat != null && activeChat2 != null) {
-                    activeChat = serverConnection.dataManager.getByUsername(selectedItem);
-                    activeChat2 = null;
-                } else if (activeChat != null) {
-                    if (serverConnection.dataManager.isValidUser(activeChat)) {
-                        activeChat2 = serverConnection.dataManager.getByUsername(selectedItem);
-                        if (activeChat.equals(activeChat2)) {
-                            activeChat2 = null;
-                        }
-                    } else {
+                    synchronized (serverConnection.dataManager) {
                         activeChat = serverConnection.dataManager.getByUsername(selectedItem);
                     }
+                    activeChat2 = null;
+                } else if (activeChat != null) {
+                    synchronized (serverConnection.dataManager) {
+                        if (serverConnection.dataManager.isValidUser(activeChat)) {
+                            activeChat2 = serverConnection.dataManager.getByUsername(selectedItem);
+                            if (activeChat.equals(activeChat2)) {
+                                activeChat2 = null;
+                            }
+                        } else {
+                            activeChat = serverConnection.dataManager.getByUsername(selectedItem);
+                        }
+                    }
                 } else {
-                    activeChat = serverConnection.dataManager.getByUsername(selectedItem);
+                    synchronized (serverConnection.dataManager) {
+                        activeChat = serverConnection.dataManager.getByUsername(selectedItem);
+                    }
                 }
                 updateChat();
             }
@@ -184,24 +182,21 @@ public class GUIServer extends Application {
         pane.setRight(rightVbox);
 
         Label leftLabel = new Label("Groups (Click to view chat)");
+        leftLabel.setFont(Font.font("serif", FontWeight.BOLD, 16));
         leftLabel.setAlignment(Pos.CENTER);
-        VBox leftVbox = new VBox(10, leftLabel, listItems3);
-        listItems3.setOnMouseClicked((e) -> {
-            String selectedItem = listItems3.getSelectionModel().getSelectedItem();
-            System.out.println("Setting active chat as " + selectedItem);
-            activeChat = serverConnection.dataManager.getByGroupName(selectedItem);
-            System.out.println("Active chat now " + activeChat);
-            activeChat2 = null;
-            updateChat();
+        VBox leftVbox = new VBox(10, leftLabel, groupsListView);
+        groupsListView.setOnMouseClicked((e) -> {
+            String selectedItem = groupsListView.getSelectionModel().getSelectedItem();
+            if (selectedItem != null && !selectedItem.isEmpty()) {
+                activeChat = serverConnection.dataManager.getByGroupName(selectedItem);
+                activeChat2 = null;
+                updateChat();
+            }
         });
         leftVbox.setAlignment(Pos.CENTER);
 
         pane.setLeft(leftVbox);
         pane.setStyle("-fx-font-family: 'serif'");
         return new Scene(pane, 1400, 800);
-
-
     }
-
-
 }

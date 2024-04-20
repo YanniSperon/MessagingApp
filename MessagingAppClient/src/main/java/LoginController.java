@@ -1,4 +1,5 @@
 import Data.LoginAttempt;
+import Data.Payload;
 import javafx.event.ActionEvent;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
@@ -17,12 +18,27 @@ public class LoginController implements CustomController, Initializable {
     public Button loginButton;
 
     public void loginButtonPressed(ActionEvent actionEvent) {
-        System.out.println("Attempting login to server");
+        synchronized (GUIClient.clientConnection.dataManager) {
+            String originalEntry = usernameEntryField.getText();
+            if (!originalEntry.isEmpty()) {
+                String usernameEntry = originalEntry.trim();
+                if (originalEntry.equals(usernameEntry)) {
+                    GUIClient.clientConnection.lastOperation = Payload.Type.LOGIN_ATTEMPT;
+                    System.out.println("Attempting login to server");
 
-        LoginAttempt m = new LoginAttempt();
-        m.username = usernameEntryField.getText();
+                    LoginAttempt m = new LoginAttempt();
+                    m.username = usernameEntry;
 
-        GUIClient.clientConnection.send(new Packet(m));
+                    GUIClient.clientConnection.send(new Packet(m));
+                } else {
+                    invalidUsernameIndicator.setText("Username cannot have trailing or leading whitespace");
+                    invalidUsernameIndicator.setVisible(true);
+                }
+            } else {
+                invalidUsernameIndicator.setText("Please enter a username");
+                invalidUsernameIndicator.setVisible(true);
+            }
+        }
     }
 
     public void onUsernameEntryKeyPressed(KeyEvent keyEvent) {
@@ -32,6 +48,7 @@ public class LoginController implements CustomController, Initializable {
     }
 
     public void onInvalidLogin() {
+        invalidUsernameIndicator.setText("Username taken");
         invalidUsernameIndicator.setVisible(true);
     }
 
